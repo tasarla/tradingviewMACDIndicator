@@ -1,0 +1,53 @@
+//@version=5
+//MACD Indicator ile alım satım ve izleme için kullanabilirsiniz. rsi 14 ile verimli çalışır.oncelike rsi 14 kesişmesi tamamlanır
+//sonra macd sinyali size yeşil yada kırmızı yakar bu şekilde duluş ve yukseliş sinyali alırsınız. rsi 14 ve tasarlaweb macd birlikte kullanılırsa trade yaparken en dip en tepe al ve sat sinyallerini kaçırmamış olursunuz.
+
+
+indicator(title='tasarlaweb MACD Indicator', shorttitle='tasarlaweb MACD Indicator')
+source = close
+useCurrentRes = input(true, title='Mevcut Grafik Çözünürlüğü Kullanılsın mı?')
+resCustom = input.timeframe(title='Farklı Zaman Çerçevesi Kullanılsın mı? Yukarıdaki Kutunun İşaretini Kaldırın', defval='60')
+smd = input(true, title='MacD ve Sinyal Hattını Göster? Ayrıca Aşağıdaki Noktaları Kapatın')
+sd = input(true, title='MacD Sinyal Çizgisini Geçtiğinde Noktaları Göster?')
+sh = input(true, title='Histogramı Göster?')
+macd_colorChange = input(true, title='MacD Çizgi Rengi-Sinyal Çizgisi Çapraz Değiştirilsin mi?')
+hist_colorChange = input(true, title='MacD Histogram 4 Renk?')
+
+res = useCurrentRes ? timeframe.period : resCustom
+
+fastLength = input.int(12, minval=1)
+slowLength = input.int(26, minval=1)
+signalLength = input.int(9, minval=1)
+
+fastMA = ta.ema(source, fastLength)
+slowMA = ta.ema(source, slowLength)
+
+macd = fastMA - slowMA
+signal = ta.sma(macd, signalLength)
+hist = macd - signal
+
+outMacD = request.security(syminfo.tickerid, res, macd)
+outSignal = request.security(syminfo.tickerid, res, signal)
+outHist = request.security(syminfo.tickerid, res, hist)
+
+histA_IsUp = outHist > outHist[1] and outHist > 0
+histA_IsDown = outHist < outHist[1] and outHist > 0
+histB_IsDown = outHist < outHist[1] and outHist <= 0
+histB_IsUp = outHist > outHist[1] and outHist <= 0
+
+//MacD Color Definitions
+macd_IsAbove = outMacD >= outSignal
+macd_IsBelow = outMacD < outSignal
+
+plot_color = hist_colorChange ? histA_IsUp ? color.aqua : histA_IsDown ? color.blue : histB_IsDown ? color.red : histB_IsUp ? color.maroon : color.yellow : color.gray
+macd_color = macd_colorChange ? macd_IsAbove ? color.lime : color.red : color.red
+signal_color = macd_colorChange ? macd_IsAbove ? color.yellow : color.yellow : color.lime
+
+circleYPosition = outSignal
+
+plot(smd and outMacD ? outMacD : na, title='MACD', color=macd_color, linewidth=4)
+plot(smd and outSignal ? outSignal : na, title='Signal Line', color=signal_color, style=plot.style_line, linewidth=2)
+plot(sh and outHist ? outHist : na, title='Histogram', color=plot_color, style=plot.style_histogram, linewidth=4)
+plot(sd and ta.cross(outMacD, outSignal) ? circleYPosition : na, title='Cross', style=plot.style_circles, linewidth=4, color=macd_color)
+hline(0, '0 Line', linestyle=hline.style_solid, linewidth=2, color=color.white)
+
